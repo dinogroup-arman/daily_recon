@@ -14,7 +14,7 @@ def get_previous_day_filename(prefix):
         target_date = today - datetime.timedelta(days=1)  # Subtract 1 day to get the previous day
 
     # Construct the filename
-    filename = f"{prefix}_DailyPL_{target_date.strftime('%Y%m%d')}.csv"
+    filename = f"{prefix}_RealizedPL_{target_date.strftime('%Y%m%d')}.csv"
     return filename
 
 # Determine the filenames for TX and EG
@@ -30,20 +30,17 @@ merged_df = pd.concat([tx_df, eg_df], ignore_index=True)
 
 # List of columns to drop
 columns_to_drop = [
-    "YTDUnrealizedPL", "YTDRealizedPL", "YTDCouponInterest",
-    "YTDFundingInterest", "YTDTotalPL", "ClosingPrice", 
-    "factor", "Rate", "TradeQuantity", "SettleQuantity", 
-    "TradeMarketValue", "SettleMarketValue",
-    "OfficeRR", "Currency", "SecurityType", "Symbol", 
-    "CUSIP", "Sedol", "SecurityDescription", "MTDFundingInterest",
-    "TodayFundingInterest", "TodayUnrealizedPL", "MTDUnrealizedPL",
-    "MTDRealizedPL", "MTDCouponInterest", "MTDTotalPL"
+    "MTDRealizedPL", "YTDRealizedPL", "Today_FundingInterest", 
+    "MTDFundingInterest", "YTDFundingInterest", "MTDCouponInterest",
+    "YTDCouponInterest", "MTDCouponPayment", "YTDCouponPayment",
+    "TodayPrincipalPaydown", "MTDPrincipalPaydown", "YTDPrincipalPaydown",
+    "CUSIP"
 ]
 
 # Drop the columns
 merged_df = merged_df.drop(columns=columns_to_drop, errors='ignore')
 
-merged_df = merged_df.sort_values(by="AccountNumber")
+merged_df = merged_df.sort_values(by="Account")
 
 # List of account numbers to keep
 accounts_to_keep = [
@@ -55,55 +52,22 @@ accounts_to_keep = [
 ]
 
 # Filter the dataframe to retain only the specified account numbers
-merged_df = merged_df[merged_df['AccountNumber'].isin(accounts_to_keep)]
+merged_df = merged_df[merged_df['Account'].isin(accounts_to_keep)]
 
 # Columns to sum for each account number
-columns_to_sum = [
-    "TodayUnrealizedPL", "TodayRealizedPL", "TodayCouponInterest",
-     "TodayTotalPL", "MTDUnrealizedPL",
-    "MTDRealizedPL", "MTDCouponInterest", "MTDTotalPL"
-]
+columns_to_sum = ["TodayRealizedPL", "TodayCouponInterest", "TodayCouponPayment"]
 
 # Group by AccountNumber and sum the specified columns
-merged_df = merged_df.groupby('AccountNumber')[columns_to_sum].sum().reset_index()
-
+merged_df = merged_df.groupby('Account')[columns_to_sum].sum().reset_index()
 
 # Compute the sum for each of the columns_to_sum and append to the end
 summed_values = merged_df[columns_to_sum].sum()
-summed_values['AccountNumber'] = 'Total'
+summed_values['Account'] = 'Total'
 merged_df = pd.concat([merged_df, pd.DataFrame([summed_values])], ignore_index=True)
-
 
 # Define a style for the desired number format
 number_format_style = NamedStyle(name="number_format_style", number_format="#,##0.00_);[Red](#,##0.00)")
 
 # Save the dataframe to an Excel file
-excel_file = 'Formatted_Merged_DailyPL.xlsx'
+excel_file = 'Formatted_Merged_RealizedPL.xlsx'
 merged_df.to_excel(excel_file, index=False, engine='openpyxl')
-
-# Load the Excel workbook and get the active worksheet
-wb = openpyxl.load_workbook(excel_file)
-ws = wb.active
-
-# Apply the column width and number format style
-for column in ws.columns:
-    max_length = 0
-    column = [cell for cell in column]
-    for cell in column:
-        try:
-            if len(str(cell.value)) > max_length:
-                max_length = len(cell.value)
-        except:
-            pass
-    adjusted_width = (max_length + 2) if max_length < 20 else 20
-    ws.column_dimensions[column[0].column_letter].width = adjusted_width
-
-    # Apply the number format
-    for cell in column:
-        if isinstance(cell.value, (int, float)):
-            cell.style = number_format_style
-
-# Save the changes
-wb.save(excel_file)
-
-print('Files merged, columns dropped, and Excel formatting applied successfully!')
