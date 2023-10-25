@@ -29,6 +29,11 @@ cols_to_sum = ['PnL', 'Bond Interest', 'Principle Pay Down', 'Premium', 'Bond Co
 # Group by 'Account' and sum the specified columns
 result = df.groupby('Account')[cols_to_sum].sum().reset_index()
 
+# Compute the sum for each of the cols_to_sum and append to the end
+summed_values = result[cols_to_sum].sum()
+summed_values['Account'] = 'Total'
+result = pd.concat([result, pd.DataFrame([summed_values])], ignore_index=True)
+
 # Save the result to a new Excel file
 result_file_path = 'summed_values_by_account.xlsx'
 result.to_excel(result_file_path, index=False, engine='openpyxl')
